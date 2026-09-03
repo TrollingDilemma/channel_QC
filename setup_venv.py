@@ -12,7 +12,7 @@ import venv
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DEFAULT_VENV_DIR = PROJECT_DIR / ".venv"
-REQUIRED_PACKAGES = ("mne",)
+REQUIRED_PACKAGES = ("mne", "scipy", "matplotlib")
 
 
 def venv_python(venv_dir: Path) -> Path:

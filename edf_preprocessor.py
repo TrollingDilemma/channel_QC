@@ -15,9 +15,29 @@ def load_edf(directory_path:str | Path, file_name:str, preload: bool=True) -> mn
     if not edf_path.is_file():
         raise ValueError(f"파일 경로 아님: {edf_path}")
     raw = mne.io.read_raw_edf(edf_path, preload=preload, verbose=False)
+    print_edf_metadata(raw)
     return raw
 
-## 2. channel-wise voltage timeseries
+
+## 2. EDF metadata terminal output
+def print_edf_metadata(raw: mne.io.BaseRaw) -> None:
+    sampling_frequency = extract_sampling_frequency(raw)
+
+    print(f"Sampling frequency: {sampling_frequency:g} Hz")
+    print("Header names:")
+    for header_name in raw.ch_names:
+        print(f"- {header_name}")
+
+
+## 3. sampling frequency
+def extract_sampling_frequency(raw: mne.io.BaseRaw) -> float:
+    sampling_frequency = float(raw.info["sfreq"])
+    if not np.isfinite(sampling_frequency) or sampling_frequency <= 0:
+        raise ValueError("sampling frequency가 유효한 양수가 아님")
+    return sampling_frequency
+
+
+## 4. channel-wise voltage timeseries
 def extract_channel_timeseries(raw: mne.io.BaseRaw) -> dict[str, NDArray[np.float64]]:
     eeg_channel_indices = mne.pick_types(raw.info, eeg=True, exclude=[])
     if eeg_channel_indices.size == 0:
