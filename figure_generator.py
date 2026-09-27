@@ -272,6 +272,7 @@ def save_channel_psd_figure(
     header_name: str,
     averaging_method: str,
     output_path: Path,
+    sampling_frequency: float,
 ) -> None:
     robust_min, robust_max = compute_robust_psd_limits(all_segment_power)
     robust_normalization = Normalize(
@@ -280,15 +281,10 @@ def save_channel_psd_figure(
         clip=False,
     )
     figure, axis = plt.subplots(figsize=(12, 7), constrained_layout=True)
-    notch_guide_frequencies = np.arange(
-        psd_math.POWER_LINE_FREQUENCY,
-        psd_math.MAX_ANALYSIS_FREQUENCY + psd_math.POWER_LINE_FREQUENCY,
-        psd_math.POWER_LINE_FREQUENCY,
-    )
-    notch_guide_frequencies = notch_guide_frequencies[
-        notch_guide_frequencies <= psd_math.MAX_ANALYSIS_FREQUENCY
-    ]
+    notch_guide_frequencies = psd_math.get_notch_frequencies(sampling_frequency)
+    visible_points = np.ones(frequencies.shape, dtype=bool)
     for notch_frequency in notch_guide_frequencies:
+        visible_points &= np.abs(frequencies - notch_frequency) > 5.0
         axis.axvline(
             notch_frequency,
             color="#808080",
@@ -299,9 +295,9 @@ def save_channel_psd_figure(
         )
     axis.plot(frequencies, representative_power, color="#707070", linewidth=0.7)
     points = axis.scatter(
-        frequencies,
-        representative_power,
-        c=representative_power,
+        frequencies[visible_points],
+        representative_power[visible_points],
+        c=representative_power[visible_points],
         cmap=PSD_SPECTRUM_COLORMAP,
         norm=robust_normalization,
         s=14,
@@ -380,6 +376,7 @@ def generate_psd_figures(
             header_name,
             averaging_method,
             method_directory / output_name,
+            sampling_frequency,
         )
 
 

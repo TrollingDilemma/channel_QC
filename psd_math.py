@@ -7,7 +7,7 @@ from scipy.signal import iirnotch, sosfiltfilt, tf2sos
 WELCH_SEGMENT_LENGTH_SECONDS = 2.0  # sec
 WELCH_OVERLAP_RATIO = 0.5  # *100%
 MIN_ANALYSIS_FREQUENCY = 1.0  # Hz
-MAX_ANALYSIS_FREQUENCY = 250.0  # Hz
+MAX_ANALYSIS_FREQUENCY = 512.0  # Hz
 POWER_LINE_FREQUENCY = 60.0  # Hz
 NOTCH_FILTER_Q = 30.0
 
@@ -28,6 +28,19 @@ def compute_welch_parameters(sampling_frequency: float) -> tuple[int, int, int]:
         raise ValueError("FREQUENCY BIN LENGTH가 0.5 Hz가 아님")
 
     return segment_length_samples, overlap_samples, step_samples
+
+
+def get_notch_frequencies(
+    sampling_frequency: float,
+    powerline_frequency: float = POWER_LINE_FREQUENCY,
+) -> np.ndarray:
+    maximum = min(
+        MAX_ANALYSIS_FREQUENCY,
+        np.nextafter(sampling_frequency / 2.0, 0.0),
+    )
+    frequencies = np.arange(powerline_frequency, maximum + powerline_frequency,
+                            powerline_frequency, dtype=np.float64)
+    return frequencies[frequencies <= maximum]
 
 
 ## 4. 60 Hz harmonic notch filtering
@@ -52,20 +65,7 @@ def apply_powerline_notch_filter(
     if quality_factor <= 0:
         raise ValueError("quality_factor는 0보다 커야 함")
 
-    nyquist_frequency = sampling_frequency / 2.0
-    maximum_notch_frequency = min(
-        MAX_ANALYSIS_FREQUENCY,
-        np.nextafter(nyquist_frequency, 0.0),
-    )
-    notch_frequencies = np.arange(
-        powerline_frequency,
-        maximum_notch_frequency + powerline_frequency,
-        powerline_frequency,
-        dtype=np.float64,
-    )
-    notch_frequencies = notch_frequencies[
-        notch_frequencies <= maximum_notch_frequency
-    ]
+    notch_frequencies = get_notch_frequencies(sampling_frequency, powerline_frequency)
 
     if notch_frequencies.size == 0:
         return signal.copy()
@@ -110,7 +110,7 @@ def apply_hanning_window(detrended_segment: np.ndarray) -> np.ndarray:
     return windowed_segment
 
 
-## 7. FFT per Welch segment (ROI frequency = 1-250 Hz)
+## 7. FFT per Welch segment (ROI frequency = 1-512 Hz)
 def compute_segment_fft(
     windowed_segment: np.ndarray,
     sampling_frequency: float,
